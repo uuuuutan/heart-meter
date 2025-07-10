@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ハートメーター</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #fce4ec, #e1bee7);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .meter-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 40px 0;
+        }
+
+        .heart-meter {
+            position: relative;
+            width: 256px;
+            height: 256px;
+        }
+
+        .heart-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .heart-background {
+            fill: #e5e7eb;
+            stroke: #d1d5db;
+            stroke-width: 2;
+        }
+
+        .heart-fill {
+            transition: all 0.15s ease-out;
+        }
+
+        .heart-outline {
+            fill: none;
+            stroke: #9ca3af;
+            stroke-width: 2;
+        }
+
+        .drag-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .boundary-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            border-radius: 1px;
+            cursor: grab;
+            transition: all 0.15s ease-out;
+            z-index: 20;
+        }
+
+        .boundary-line:hover {
+            height: 3px;
+        }
+
+        .boundary-line.dragging {
+            cursor: grabbing;
+        }
+
+        .drag-handle {
+            position: absolute;
+            left: 50%;
+            width: 32px;
+            height: 32px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            cursor: grab;
+            transition: all 0.15s ease-out;
+            z-index: 30;
+            transform: translateX(-50%) translateY(50%);
+        }
+
+        .drag-handle:hover {
+            transform: translateX(-50%) translateY(50%) scale(1.05);
+        }
+
+        .drag-handle.dragging {
+            cursor: grabbing;
+            transform: translateX(-50%) translateY(50%) scale(1.1);
+        }
+
+        .scale {
+            position: absolute;
+            right: -30px;
+            top: 0;
+            height: 256px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .percentage {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .reset-btn {
+            margin-top: 30px;
+            padding: 10px 24px;
+            background: #e5e7eb;
+            border: none;
+            border-radius: 20px;
+            color: #374151;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: #d1d5db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+
+        <div class="meter-container">
+            <div class="heart-meter">
+                <svg class="heart-svg" viewBox="0 0 256 256">
+                    <defs>
+                        <clipPath id="heartClip">
+                            <path d="M128 230 C128 230 20 150 20 100 C20 60 50 30 90 30 C110 30 128 45 128 45 C128 45 146 30 166 30 C206 30 236 60 236 100 C236 150 128 230 128 230 Z" />
+                        </clipPath>
+                    </defs>
+
+                    <!-- 背景のハート -->
+                    <path class="heart-background" d="M128 230 C128 230 20 150 20 100 C20 60 50 30 90 30 C110 30 128 45 128 45 C128 45 146 30 166 30 C206 30 236 60 236 100 C236 150 128 230 128 230 Z" />
+
+                    <!-- 充填部分 -->
+                    <rect id="heartFill" class="heart-fill" x="0" y="128" width="256" height="128" clip-path="url(#heartClip)" />
+
+                    <!-- ハートの輪郭 -->
+                    <path class="heart-outline" d="M128 230 C128 230 20 150 20 100 C20 60 50 30 90 30 C110 30 128 45 128 45 C128 45 146 30 166 30 C206 30 236 60 236 100 C236 150 128 230 128 230 Z" />
+                </svg>
+
+                <div class="drag-area" id="dragArea"></div>
+                <div class="boundary-line" id="boundaryLine"></div>
+                <div class="drag-handle" id="dragHandle"></div>
+
+                <div class="scale">
+                    <span>100</span>
+                    <span>80</span>
+                    <span>60</span>
+                    <span>40</span>
+                    <span>20</span>
+                    <span>0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="percentage" id="percentage">50%</div>
+
+        <button class="reset-btn" onclick="setLevel(50)">リセット</button>
+    </div>
+
+    <script>
+        let level = 50;
+        let isDragging = false;
+
+        const heartFill = document.getElementById('heartFill');
+        const boundaryLine = document.getElementById('boundaryLine');
+        const dragHandle = document.getElementById('dragHandle');
+        const percentage = document.getElementById('percentage');
+        const dragArea = document.getElementById('dragArea');
+
+        function getColor(level) {
+            if (level >= 80) return '#ff1744';
+            if (level >= 60) return '#ff5722';
+            if (level >= 40) return '#ff9800';
+            if (level >= 20) return '#ffc107';
+            return '#4caf50';
+        }
+
+        function updateDisplay() {
+            const color = getColor(level);
+            const fillHeight = (level / 100) * 256;
+            const fillY = 256 - fillHeight;
+            const bottomPercent = level;
+
+            heartFill.setAttribute('y', fillY);
+            heartFill.setAttribute('height', fillHeight);
+            heartFill.setAttribute('fill', color);
+            heartFill.style.filter = `drop-shadow(0 0 10px ${color}80)`;
+
+            boundaryLine.style.bottom = `${bottomPercent}%`;
+            dragHandle.style.bottom = `${bottomPercent}%`;
+            dragHandle.style.borderColor = color;
+            dragHandle.style.border = `3px solid ${color}`;
+
+            percentage.textContent = `${Math.round(level)}%`;
+            percentage.style.color = color;
+        }
+
+        function updateLevel(e) {
+            const rect = dragArea.getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const height = rect.height;
+            const newLevel = Math.max(0, Math.min(100, ((height - y) / height) * 100));
+            level = newLevel;
+            updateDisplay();
+        }
+
+        function setLevel(newLevel) {
+            level = newLevel;
+            updateDisplay();
+        }
+
+        function handleMouseDown(e) {
+            isDragging = true;
+            boundaryLine.classList.add('dragging');
+            dragHandle.classList.add('dragging');
+            updateLevel(e);
+        }
+
+        function handleMouseMove(e) {
+            if (isDragging) {
+                updateLevel(e);
+            }
+        }
+
+        function handleMouseUp() {
+            isDragging = false;
+            boundaryLine.classList.remove('dragging');
+            dragHandle.classList.remove('dragging');
+        }
+
+        // イベントリスナーの設定
+        boundaryLine.addEventListener('mousedown', handleMouseDown);
+        dragHandle.addEventListener('mousedown', handleMouseDown);
+
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        // 初期表示
+        updateDisplay();
+    </script>
+</body>
+</html>
