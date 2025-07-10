@@ -155,8 +155,6 @@
 </head>
 <body>
     <div class="container">
-
-
         <div class="meter-container">
             <div class="heart-meter">
                 <svg class="heart-svg" viewBox="0 0 256 256">
@@ -166,13 +164,10 @@
                         </clipPath>
                     </defs>
 
-                    <!-- 背景のハート -->
                     <path class="heart-background" d="M128 230 C128 230 20 150 20 100 C20 60 50 30 90 30 C110 30 128 45 128 45 C128 45 146 30 166 30 C206 30 236 60 236 100 C236 150 128 230 128 230 Z" />
 
-                    <!-- 充填部分 -->
                     <rect id="heartFill" class="heart-fill" x="0" y="128" width="256" height="128" clip-path="url(#heartClip)" />
 
-                    <!-- ハートの輪郭 -->
                     <path class="heart-outline" d="M128 230 C128 230 20 150 20 100 C20 60 50 30 90 30 C110 30 128 45 128 45 C128 45 146 30 166 30 C206 30 236 60 236 100 C236 150 128 230 128 230 Z" />
                 </svg>
 
@@ -192,7 +187,6 @@
         </div>
 
         <div class="percentage" id="percentage">50%</div>
-
         <button class="reset-btn" onclick="setLevel(50)">リセット</button>
     </div>
 
@@ -234,13 +228,17 @@
             percentage.style.color = color;
         }
 
-        function updateLevel(e) {
-            const rect = dragArea.getBoundingClientRect();
-            const y = e.clientY - rect.top;
-            const height = rect.height;
+        function updateLevelFromY(y, height) {
             const newLevel = Math.max(0, Math.min(100, ((height - y) / height) * 100));
             level = newLevel;
             updateDisplay();
+        }
+
+        function updateLevel(e) {
+            const rect = dragArea.getBoundingClientRect();
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            const y = clientY - rect.top;
+            updateLevelFromY(y, rect.height);
         }
 
         function setLevel(newLevel) {
@@ -248,31 +246,38 @@
             updateDisplay();
         }
 
-        function handleMouseDown(e) {
+        function startDrag(e) {
             isDragging = true;
             boundaryLine.classList.add('dragging');
             dragHandle.classList.add('dragging');
             updateLevel(e);
+            e.preventDefault();
         }
 
-        function handleMouseMove(e) {
+        function moveDrag(e) {
             if (isDragging) {
                 updateLevel(e);
+                e.preventDefault();
             }
         }
 
-        function handleMouseUp() {
+        function stopDrag() {
             isDragging = false;
             boundaryLine.classList.remove('dragging');
             dragHandle.classList.remove('dragging');
         }
 
-        // イベントリスナーの設定
-        boundaryLine.addEventListener('mousedown', handleMouseDown);
-        dragHandle.addEventListener('mousedown', handleMouseDown);
+        // マウスイベント
+        boundaryLine.addEventListener('mousedown', startDrag);
+        dragHandle.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', moveDrag);
+        document.addEventListener('mouseup', stopDrag);
 
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+        // タッチイベント
+        boundaryLine.addEventListener('touchstart', startDrag);
+        dragHandle.addEventListener('touchstart', startDrag);
+        document.addEventListener('touchmove', moveDrag);
+        document.addEventListener('touchend', stopDrag);
 
         // 初期表示
         updateDisplay();
